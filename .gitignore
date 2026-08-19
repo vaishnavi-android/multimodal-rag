@@ -1,0 +1,82 @@
+# ==============================
+# Python virtual environment
+# ==============================
+.venv/
+venv/
+env/
+ENV/
+
+# ==============================
+# Environment variables / secrets
+# ==============================
+.env
+.env.*
+!.env.example
+
+# ==============================
+# Python cache / compiled files
+# ==============================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# ==============================
+# Testing / coverage
+# ==============================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+
+# ==============================
+# IDE / editor files
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==============================
+# RAG generated vector database
+# ==============================
+vector_db/
+
+# ==============================
+# Logs
+# ==============================
+logs/
+*.log
+
+# ==============================
+# Temporary / generated files
+# ==============================
+*.tmp
+*.temp
+*.bak
+
+# ==============================
+# OS files
+# ==============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==============================
+# Model / ML generated files
+# ==============================
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# ==============================
+# Local test artifacts
+# ==============================
+groq_test.png
+
+# Accidental temporary files
+List[Dict[str, str]]
