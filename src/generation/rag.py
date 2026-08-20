@@ -20,7 +20,7 @@ from typing import Dict, Any
 
 from src.retrieval.retriever import retrieve
 from src.generation.prompt import build_prompt
-from src.generation.groq_client import generate
+from src.generation.ollama_client import generate
 
 
 NOT_FOUND_MESSAGE = (

@@ -48,7 +48,10 @@ from src.preprocessing.preprocessing_pipeline import (
     preprocess_content_units,
 )
 from src.chunking.chunker import chunk_units
-from src.metadata.metadata_builder import build_metadata
+from src.metadata.metadata_builder import (
+    build_metadata,
+    make_document_id,
+)
 from src.embeddings.embedder import embed_texts
 from src.vector_store import get_vector_store
 
@@ -80,7 +83,19 @@ def run_ingestion(bucket_id: str):
     # =========================================================
 
     for doc_path in documents:
+        # =====================================================
+        # CHECK WHETHER DOCUMENT WAS ALREADY INGESTED
+        # =====================================================
 
+        document_id = make_document_id(str(doc_path))
+
+        if store.document_exists(document_id):
+            print(
+                f"[{bucket_id}] "
+                f"SKIPPING {doc_path.name} "
+                f"— already ingested"
+            )
+            continue
         print("\n" + "=" * 70)
         print(
             f"[{bucket_id}] PROCESSING DOCUMENT: "

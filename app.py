@@ -11,7 +11,7 @@ API_URL = "http://127.0.0.1:8000/query"
 # ---------------------------------------------------------
 
 st.set_page_config(
-    page_title="Multimodal RAG",
+    page_title="Great-INDIAN-Query-RAG",
     page_icon="🧠",
     layout="centered",
 )
@@ -21,7 +21,7 @@ st.set_page_config(
 # Header
 # ---------------------------------------------------------
 
-st.title("🧠 Multimodal RAG")
+st.title("🧠 Great-INDIA-Query-rag")
 
 st.caption(
     "Ask questions about your knowledge base. "
@@ -33,11 +33,11 @@ st.caption(
 # Question input
 # ---------------------------------------------------------
 
-st.subheader("Ask Your Knowledge Base")
+st.subheader("Ask from the Knowledge Base")
 
 query = st.text_input(
     "Question",
-    placeholder="Which organisms have life cycle posters?",
+    placeholder="Type your question here...",
 )
 
 
@@ -45,7 +45,7 @@ query = st.text_input(
 # Ask button
 # ---------------------------------------------------------
 
-if st.button("🔍 Ask Knowledge Base", use_container_width=True):
+if st.button("🔍 Ask ", use_container_width=True):
 
     if not query.strip():
 

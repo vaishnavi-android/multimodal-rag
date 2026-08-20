@@ -58,6 +58,19 @@ class ChromaStore(VectorStore):
             )
         return out
 
+    def document_exists(self, document_id: str) -> bool:
+        """
+        Return True if at least one chunk belonging to the document
+        already exists in the vector store.
+        """
+        results = self._collection.get(
+            where={"document_id": document_id},
+            include=[],
+        )
+
+        return bool(results.get("ids"))
+
+
     def count(self, bucket_id: Optional[str] = None) -> int:
         if not bucket_id:
             return self._collection.count()
