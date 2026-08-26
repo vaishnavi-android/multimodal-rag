@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from src.ingestion.pdf_parser import parse_pdf
-from src.preprocessing.ocr_cleaner import clean_ocr_text
+from src.preprocessing.cleaner import clean_text
 
 
 PDF_PATH = Path("data/bucket_1/doc1.pdf")
@@ -9,14 +9,14 @@ PDF_PATH = Path("data/bucket_1/doc1.pdf")
 
 def main():
     print("=" * 70)
-    print("OCR CLEANER TEST")
+    print("TEXT CLEANER TEST")
     print("=" * 70)
 
     parsed_pdf = parse_pdf(PDF_PATH)
 
     for page in parsed_pdf.pages:
         original = page.text
-        cleaned = clean_ocr_text(original)
+        cleaned = clean_text(original)
 
         print("\n" + "=" * 70)
         print(f"PAGE {page.page_number}")
@@ -25,14 +25,14 @@ def main():
         print("\n--- ORIGINAL ---")
         print(original[:1500])
 
-        print("\n--- OCR CLEANED ---")
+        print("\n--- CLEANED ---")
         print(cleaned[:1500])
 
         print("\nOriginal characters :", len(original))
         print("Cleaned characters  :", len(cleaned))
 
     print("\n" + "=" * 70)
-    print("OCR CLEANER TEST COMPLETE")
+    print("TEXT CLEANER TEST COMPLETE")
     print("=" * 70)
 
 

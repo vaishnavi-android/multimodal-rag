@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from src.ingestion.pdf_parser import parse_pdf
-from src.preprocessing.ocr_cleaner import clean_ocr_text
+from src.preprocessing.cleaner import clean_text
 from src.preprocessing.document_deduplicator import (
     deduplicate_document_text,
 )
@@ -23,8 +23,8 @@ def main():
 
     for page in parsed.pages:
 
-        # Clean OCR errors before deduplication.
-        cleaned = clean_ocr_text(page.text)
+        # Clean text before deduplication.
+        cleaned = clean_text(page.text)
 
         # Split the current page into logical blocks and remove
         # blocks that already appeared earlier in the document.

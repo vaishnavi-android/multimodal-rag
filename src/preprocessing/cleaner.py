@@ -38,11 +38,12 @@ def normalize_whitespace(text: str) -> str:
 def remove_page_markers(text: str) -> str:
     """
     Remove standalone page markers such as:
+
         Page 1
         Page 2
         PAGE 3
 
-    Page numbers are still preserved separately in PageContent metadata.
+    Page numbers are preserved separately in metadata.
     """
 
     lines = text.split("\n")
@@ -62,8 +63,7 @@ def remove_repeated_lines(text: str) -> str:
     """
     Remove immediately repeated identical non-empty lines.
 
-    Blank lines are preserved as separators and never affect
-    duplicate detection.
+    Blank lines are preserved as separators and reset duplicate tracking.
     """
 
     lines = text.split("\n")
@@ -75,11 +75,14 @@ def remove_repeated_lines(text: str) -> str:
         normalized = line.strip()
 
         # Preserve blank lines.
+        # Reset duplicate tracking because the next occurrence
+        # is no longer immediately repeated.
         if not normalized:
             cleaned.append(line)
+            previous_non_empty_line = None
             continue
 
-        # Remove only an immediately repeated non-empty line.
+        # Remove only immediately repeated non-empty lines.
         if normalized == previous_non_empty_line:
             continue
 
@@ -99,7 +102,7 @@ def remove_repeated_headers(
 
     A line is considered a repeated header only when:
     - it appears near the top of multiple pages
-    - it appears on at least `minimum_occurrences` pages
+    - it appears on at least minimum_occurrences pages
     - it is relatively short
     - it is not a numbered content line
 
@@ -136,7 +139,9 @@ def remove_repeated_headers(
             key = normalized.lower()
 
             if key not in seen_on_page:
-                candidate_counts[key] = candidate_counts.get(key, 0) + 1
+                candidate_counts[key] = (
+                    candidate_counts.get(key, 0) + 1
+                )
                 seen_on_page.add(key)
 
     repeated_headers = {
@@ -173,10 +178,10 @@ def remove_repeated_headers(
 
 def clean_text(text: str) -> str:
     """
-    Apply safe single-page preprocessing.
+    Apply safe single-content-unit preprocessing.
 
-    This function intentionally does NOT perform spelling correction
-    or aggressive OCR correction yet.
+    Performs structural cleaning only.
+    Does not perform aggressive spelling or OCR correction.
     """
 
     if not text:
@@ -191,10 +196,10 @@ def clean_text(text: str) -> str:
 
 def clean_pages(page_texts: list[str]) -> list[str]:
     """
-    Clean all pages from a document.
+    Clean multiple pages from the same document.
 
-    Repeated headers are detected across pages first, then each page
-    receives the normal cleaning operations.
+    Repeated headers are detected across pages first,
+    then each page receives normal single-page cleaning.
     """
 
     pages = remove_repeated_headers(page_texts)

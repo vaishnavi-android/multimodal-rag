@@ -70,7 +70,7 @@ def build_prompt(
     retrieved_chunks: List[Dict[str, Any]]
 ) -> str:
     """
-    Build the final grounded prompt sent to Groq.
+    Build the final grounded prompt sent to the language model.
     """
 
     context_block = build_context_block(retrieved_chunks)

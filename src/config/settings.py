@@ -62,8 +62,7 @@ RETRIEVAL_DISTANCE_THRESHOLD = float(
 # ---------------------------------------------------------------------------
 # OCR
 # ---------------------------------------------------------------------------
-OCR_ENGINE = os.getenv("OCR_ENGINE", "tesseract")  # "tesseract" | "easyocr"
-OCR_LANGUAGE = os.getenv("OCR_LANGUAGE", "eng")
+# RapidOCR handles the OCR engine internally.
 
 # ---------------------------------------------------------------------------
 # API

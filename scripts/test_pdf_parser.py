@@ -4,7 +4,7 @@ from src.ingestion.pdf_parser import parse_pdf
 
 
 # Test PDF
-PDF_PATH = Path("data/bucket_1/doc1.pdf")
+PDF_PATH = Path("data/bucket_1/hees203.pdf")
 
 
 def main():

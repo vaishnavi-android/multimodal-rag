@@ -1,36 +1,36 @@
 """
-Parses standalone image files (PNG/JPEG): runs OCR to pull out any text,
-and calls image_understanding for a visual description. Both get merged
-into one text representation so the rest of the pipeline (chunking,
-embeddings) never needs to know the content originated from an image.
+Parses standalone image files (PNG/JPG/JPEG).
+
+The image is opened and OCR is used to extract text.
+The rest of the RAG pipeline receives the extracted text.
 """
 
 from pathlib import Path
 from dataclasses import dataclass
 
+from PIL import Image
+
 from src.ingestion.ocr import run_ocr
-from src.ingestion import image_understanding
 
 
 @dataclass
 class ParsedImage:
-    file_path: Path
-    ocr_text: str
-    description: str
+    """Text extracted from a standalone image."""
 
-    @property
-    def combined_text(self) -> str:
-        parts = [p for p in (self.description, self.ocr_text) if p]
-        return "\n\n".join(parts)
+    file_path: Path
+    text: str
 
 
 def parse_image(file_path: Path) -> ParsedImage:
-    from PIL import Image
+    """Extract text from a standalone image."""
 
     file_path = Path(file_path)
-    img = Image.open(file_path).convert("RGB")
 
-    ocr_text = run_ocr(img)
-    description = image_understanding.describe_image(img)
+    with Image.open(file_path) as image:
+        image = image.convert("RGB")
+        text = run_ocr(image)
 
-    return ParsedImage(file_path=file_path, ocr_text=ocr_text, description=description)
+    return ParsedImage(
+        file_path=file_path,
+        text=text,
+    )

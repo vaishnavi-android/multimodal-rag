@@ -11,7 +11,7 @@ Flow:
         ↓
     Grounded prompt
         ↓
-    Groq Qwen
+    Ollama LLM
         ↓
     Final answer
 """
@@ -77,7 +77,7 @@ def answer_query(
     )
 
     # ---------------------------------------------------------------
-    # 4. Generate answer with Groq
+    # 4. Generate answer with Ollama
     # ---------------------------------------------------------------
     answer = generate(prompt)
 
