@@ -1,9 +1,5 @@
 """
-Wraps the embedding model. Kept as a thin layer so the model can be
-swapped via EMBEDDING_MODEL in settings.py without touching any caller
-in vector_store/ or retrieval/.
-
-Requires: pip install sentence-transformers
+Wraps the embedding model
 """
 
 from functools import lru_cache

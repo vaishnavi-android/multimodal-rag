@@ -1,16 +1,6 @@
 """
 Splits cleaned RawContentUnit text into chunks for embedding.
 
-Uses configurable chunk_size / chunk_overlap (from settings.py, never
-hard-coded here). Splits on paragraph boundaries first, falling back to
-a sliding window only when a single paragraph exceeds chunk_size - this
-respects the spec's "prefer natural boundaries" guidance without pulling
-in a heavier dependency for Phase 1.
-
-Table units (content_type == "table") are never split - a table is
-kept as one coherent chunk regardless of size, since splitting a table
-mid-row would destroy the row/column relationships the spec explicitly
-says to preserve.
 """
 
 from dataclasses import dataclass

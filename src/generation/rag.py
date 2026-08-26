@@ -1,19 +1,5 @@
 """
 End-to-end RAG generation.
-
-Flow:
-
-    User question
-        ↓
-    Retrieval
-        ↓
-    Relevance filtering / deduplication
-        ↓
-    Grounded prompt
-        ↓
-    Groq Qwen
-        ↓
-    Final answer
 """
 
 from typing import Dict, Any
@@ -30,13 +16,10 @@ NOT_FOUND_MESSAGE = (
 
 def answer_query(
     query: str,
-    top_k: int = 40,
+    top_k: int = 10,
 ) -> Dict[str, Any]:
     """
     Answer a user question using the complete knowledge base.
-
-    The user does not select a bucket. Retrieval searches across all
-    configured buckets.
 
     Returns:
         {
@@ -51,39 +34,28 @@ def answer_query(
             "sources": [],
         }
 
-    # ---------------------------------------------------------------
-    # 1. Retrieve evidence from the complete knowledge base
-    # ---------------------------------------------------------------
+    # Retrieve relevant evidence
     retrieved_chunks = retrieve(
         query=query,
         top_k=top_k,
     )
 
-    # ---------------------------------------------------------------
-    # 2. If nothing relevant was retrieved, do not call the LLM.
-    # ---------------------------------------------------------------
+    # Do not call the LLM when no evidence is found
     if not retrieved_chunks:
         return {
             "answer": NOT_FOUND_MESSAGE,
             "sources": [],
         }
 
-    # ---------------------------------------------------------------
-    # 3. Build grounded prompt
-    # ---------------------------------------------------------------
+    # Build grounded prompt and generate answer
     prompt = build_prompt(
         query=query,
         retrieved_chunks=retrieved_chunks,
     )
 
-    # ---------------------------------------------------------------
-    # 4. Generate answer with Groq
-    # ---------------------------------------------------------------
     answer = generate(prompt)
 
-    # ---------------------------------------------------------------
-    # 5. Return answer + source metadata
-    # ---------------------------------------------------------------
+    # Prepare source metadata
     sources = []
 
     for chunk in retrieved_chunks:

@@ -8,9 +8,6 @@ def generate(
     prompt: str,
     model: str = OLLAMA_MODEL,
 ) -> str:
-    """
-    Generate an answer using a locally running Ollama model.
-    """
 
     if not prompt or not prompt.strip():
         return ""
@@ -25,17 +22,12 @@ def generate(
         ],
         options={
             "temperature": 0,
+            "num_predict": 300,
+            "num_ctx": 4096,
         },
     )
 
-    message = response.get("message")
-
-    if not message:
-        return ""
-
-    content = message.get("content")
-
-    if not content:
-        return ""
+    message = response.get("message", {})
+    content = message.get("content", "")
 
     return content.strip()

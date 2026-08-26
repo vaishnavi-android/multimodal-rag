@@ -1,36 +1,68 @@
-"""
-Parses standalone image files (PNG/JPEG): runs OCR to pull out any text,
-and calls image_understanding for a visual description. Both get merged
-into one text representation so the rest of the pipeline (chunking,
-embeddings) never needs to know the content originated from an image.
-"""
-
 from pathlib import Path
 from dataclasses import dataclass
 
+from PIL import Image, ImageOps
+
 from src.ingestion.ocr import run_ocr
-from src.ingestion import image_understanding
 
 
 @dataclass
 class ParsedImage:
     file_path: Path
     ocr_text: str
-    description: str
 
     @property
     def combined_text(self) -> str:
-        parts = [p for p in (self.description, self.ocr_text) if p]
-        return "\n\n".join(parts)
+        return self.ocr_text.strip()
+
+
+def _prepare_for_ocr(image: Image.Image) -> Image.Image:
+    """Upscale small images before OCR."""
+
+    image = image.convert("RGB")
+
+    width, height = image.size
+
+    if width < 1000:
+        scale = 1000 / width
+
+        image = image.resize(
+            (
+                int(width * scale),
+                int(height * scale),
+            ),
+            Image.Resampling.LANCZOS,
+        )
+
+    image = ImageOps.grayscale(image)
+
+    return image
 
 
 def parse_image(file_path: Path) -> ParsedImage:
-    from PIL import Image
-
     file_path = Path(file_path)
-    img = Image.open(file_path).convert("RGB")
 
-    ocr_text = run_ocr(img)
-    description = image_understanding.describe_image(img)
+    with Image.open(file_path) as image:
+        img = image.convert("RGB")
 
-    return ParsedImage(file_path=file_path, ocr_text=ocr_text, description=description)
+    print(f"[image_parser] Processing: {file_path.name}")
+    print(f"[image_parser] Original size: {img.size}")
+
+    prepared_image = _prepare_for_ocr(img)
+
+    print(
+        f"[image_parser] OCR size: "
+        f"{prepared_image.size}"
+    )
+
+    ocr_text = run_ocr(prepared_image)
+
+    print(
+        f"[image_parser] OCR characters extracted: "
+        f"{len(ocr_text)}"
+    )
+
+    return ParsedImage(
+        file_path=file_path,
+        ocr_text=ocr_text,
+    )

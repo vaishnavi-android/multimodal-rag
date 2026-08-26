@@ -9,7 +9,6 @@ PAGE_MARKER_PATTERN = re.compile(
 
 def normalize_whitespace(text: str) -> str:
     """Normalize whitespace while preserving paragraph structure."""
-
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
     lines = [line.rstrip() for line in text.split("\n")]
@@ -25,7 +24,6 @@ def normalize_whitespace(text: str) -> str:
         if is_blank:
             if previous_blank:
                 continue
-
             previous_blank = True
             cleaned_lines.append("")
         else:
@@ -36,50 +34,31 @@ def normalize_whitespace(text: str) -> str:
 
 
 def remove_page_markers(text: str) -> str:
-    """
-    Remove standalone page markers such as:
-        Page 1
-        Page 2
-        PAGE 3
-
-    Page numbers are still preserved separately in PageContent metadata.
-    """
-
+    """Remove standalone page markers."""
     lines = text.split("\n")
 
-    cleaned = []
-
-    for line in lines:
-        if PAGE_MARKER_PATTERN.match(line):
-            continue
-
-        cleaned.append(line)
+    cleaned = [
+        line
+        for line in lines
+        if not PAGE_MARKER_PATTERN.match(line)
+    ]
 
     return "\n".join(cleaned)
 
 
 def remove_repeated_lines(text: str) -> str:
-    """
-    Remove immediately repeated identical non-empty lines.
-
-    Blank lines are preserved as separators and never affect
-    duplicate detection.
-    """
-
+    """Remove immediately repeated non-empty lines."""
     lines = text.split("\n")
-
     cleaned = []
     previous_non_empty_line = None
 
     for line in lines:
         normalized = line.strip()
 
-        # Preserve blank lines.
         if not normalized:
             cleaned.append(line)
             continue
 
-        # Remove only an immediately repeated non-empty line.
         if normalized == previous_non_empty_line:
             continue
 
@@ -94,17 +73,7 @@ def remove_repeated_headers(
     minimum_occurrences: int = 2,
     top_lines: int = 5,
 ) -> list[str]:
-    """
-    Remove likely repeated page headers conservatively.
-
-    A line is considered a repeated header only when:
-    - it appears near the top of multiple pages
-    - it appears on at least `minimum_occurrences` pages
-    - it is relatively short
-    - it is not a numbered content line
-
-    This avoids deleting legitimate document content.
-    """
+    """Remove repeated headers appearing near the top of pages."""
 
     if not page_texts:
         return []
@@ -113,23 +82,17 @@ def remove_repeated_headers(
 
     for page_text in page_texts:
         lines = page_text.split("\n")
-
-        # Only inspect the first few lines of each page.
-        top = lines[:top_lines]
-
         seen_on_page = set()
 
-        for line in top:
+        for line in lines[:top_lines]:
             normalized = re.sub(r"\s+", " ", line.strip())
 
             if not normalized:
                 continue
 
-            # Don't treat numbered facts as headers.
-            if re.match(r"^\d+[\.\)]\s*", normalized):
+            if re.match(r"^\d+[**\.\)]\s*", normalized):
                 continue
 
-            # Don't treat long sentences as headers.
             if len(normalized) > 100:
                 continue
 
@@ -155,8 +118,6 @@ def remove_repeated_headers(
             normalized = re.sub(r"\s+", " ", line.strip())
             key = normalized.lower()
 
-            # Only remove a repeated header when it is actually
-            # located near the top of the page.
             if (
                 index < top_lines
                 and normalized
@@ -172,12 +133,7 @@ def remove_repeated_headers(
 
 
 def clean_text(text: str) -> str:
-    """
-    Apply safe single-page preprocessing.
-
-    This function intentionally does NOT perform spelling correction
-    or aggressive OCR correction yet.
-    """
+    """Apply safe preprocessing to a single page."""
 
     if not text:
         return ""
@@ -190,12 +146,7 @@ def clean_text(text: str) -> str:
 
 
 def clean_pages(page_texts: list[str]) -> list[str]:
-    """
-    Clean all pages from a document.
-
-    Repeated headers are detected across pages first, then each page
-    receives the normal cleaning operations.
-    """
+    """Clean document pages and remove repeated headers."""
 
     pages = remove_repeated_headers(page_texts)
 

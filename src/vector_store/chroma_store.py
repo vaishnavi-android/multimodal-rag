@@ -1,11 +1,3 @@
-"""
-Chroma-backed implementation of VectorStore. Default backend per the
-project spec (lightweight, fully local, no separate server process -
-appropriate given limited local resources).
-
-Requires: pip install chromadb
-"""
-
 from typing import List, Dict, Any, Optional
 
 from src.vector_store.base import VectorStore
@@ -13,11 +5,20 @@ from src.config.settings import VECTOR_DB_DIR, COLLECTION_NAME
 
 
 class ChromaStore(VectorStore):
-    def __init__(self, persist_dir=VECTOR_DB_DIR, collection_name: str = COLLECTION_NAME):
+    def __init__(
+        self,
+        persist_dir=VECTOR_DB_DIR,
+        collection_name: str = COLLECTION_NAME,
+    ):
         import chromadb
 
-        self._client = chromadb.PersistentClient(path=str(persist_dir))
-        self._collection = self._client.get_or_create_collection(name=collection_name)
+        self._client = chromadb.PersistentClient(
+            path=str(persist_dir)
+        )
+
+        self._collection = self._client.get_or_create_collection(
+            name=collection_name
+        )
 
     def add(self, ids, embeddings, documents, metadatas) -> None:
         self._collection.upsert(
@@ -33,7 +34,12 @@ class ChromaStore(VectorStore):
         top_k: int,
         bucket_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        where = {"bucket_id": bucket_id} if bucket_id else None
+
+        where = (
+            {"bucket_id": bucket_id}
+            if bucket_id
+            else None
+        )
 
         results = self._collection.query(
             query_embeddings=[query_embedding],
@@ -42,6 +48,7 @@ class ChromaStore(VectorStore):
         )
 
         out = []
+
         ids = results.get("ids", [[]])[0]
         docs = results.get("documents", [[]])[0]
         metas = results.get("metadatas", [[]])[0]
@@ -56,13 +63,10 @@ class ChromaStore(VectorStore):
                     "distance": dists[i],
                 }
             )
+
         return out
 
     def document_exists(self, document_id: str) -> bool:
-        """
-        Return True if at least one chunk belonging to the document
-        already exists in the vector store.
-        """
         results = self._collection.get(
             where={"document_id": document_id},
             include=[],
@@ -70,8 +74,11 @@ class ChromaStore(VectorStore):
 
         return bool(results.get("ids"))
 
+    def count(
+        self,
+        bucket_id: Optional[str] = None,
+    ) -> int:
 
-    def count(self, bucket_id: Optional[str] = None) -> int:
         if not bucket_id:
             return self._collection.count()
 
