@@ -72,8 +72,7 @@ RRF_K = 60
 RERANK_CANDIDATES = 8
 FINAL_TOP_K = 4
 
-# Minimum cross-encoder relevance score required
-# before attempting answer generation.
+# Minimum cross-encoder relevance score required before attempting answer generation.
 RERANK_RELEVANCE_THRESHOLD = 0.0
 
 

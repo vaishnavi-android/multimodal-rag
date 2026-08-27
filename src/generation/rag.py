@@ -2,10 +2,6 @@
 """
 End-to-end RAG generation pipeline.
 
-Searches both knowledge buckets automatically and generates
-an answer using the most relevant evidence.
-
-Detailed pipeline activity is written to the RAG log file.
 """
 
 from typing import Dict, Any, List

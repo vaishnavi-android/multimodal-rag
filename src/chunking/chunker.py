@@ -94,35 +94,12 @@ def _split_into_sections(text: str) -> List[str]:
     """
     Split text into semantic sections.
 
-    Detects inline headings followed by numbered facts.
-
-    Examples:
-
-        Earth & Geography 01. Earth is...
-
-        Human Biology 07. An adult human skeleton...
-
-        Physics & Chemistry 13. Light travels...
-
-        Space 19. The Sun is...
-
-        Ecology 24. Food webs...
     """
 
     if not text or not text.strip():
         return []
 
     text = text.strip()
-
-    # Match a likely heading followed by a numbered item.
-    #
-    # Examples:
-    #
-    # Earth & Geography 01.
-    # Human Biology 07.
-    # Physics & Chemistry 13.
-    # Space 19.
-    # Ecology 24.
     pattern = re.compile(
         r"""
         (?P<heading>
