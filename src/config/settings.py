@@ -55,10 +55,13 @@ COLLECTION_NAME = os.getenv(
 
 
 # RetrievaL
-
 RETRIEVAL_DISTANCE_THRESHOLD = float(
     os.getenv("RETRIEVAL_DISTANCE_THRESHOLD", 1.0)
 )
+
+# Number of top retrieved chunks used for final generation
+TOP_K = 3
+
 # Hybrid retrieval
 DENSE_TOP_K = 6
 BM25_TOP_K = 6
