@@ -50,6 +50,9 @@ vector_db/
 # ==============================
 logs/
 *.log
+# Logs
+logs/
+*.log
 
 # ==============================
 # Temporary / generated files

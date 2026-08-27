@@ -1,139 +1,424 @@
-# Multimodal Bucket-Based RAG
+# Great-INDIA-Query-RAG
 
-A bucket-aware Retrieval-Augmented Generation system. Documents live in one
-of two knowledge bases (**bucket_1** / **bucket_2**); a user picks a
-bucket, asks a question, and retrieval is filtered to search **only**
-that bucket before a local LLM (via Ollama) generates a grounded,
-source-cited answer.
+## Project Overview
 
-## Pipeline
+Great-INDIA-Query-RAG is a multimodal Retrieval-Augmented Generation (RAG) application.
 
+The system processes documents, extracts useful information, stores it in a searchable knowledge base, and generates answers to user questions using retrieved document content.
+
+The project currently supports two knowledge buckets:
+
+* `bucket_1`
+* `bucket_2`
+
+When a user asks a question, the system automatically searches both buckets, finds the most relevant information, and generates an answer based on the retrieved content.
+
+---
+
+# How the Project Works
+
+## 1. Document Ingestion
+
+Documents are placed inside the data folders:
+
+```text
+data/
+├── bucket_1/
+└── bucket_2/
 ```
-Documents → Parse (PDF/OCR/tables/images) → Preprocess → Chunk → Metadata
-→ Embed → Vector DB
-                                                              │
-User selects bucket → Query → Query Embedding → Bucket Filter
-→ Similarity Search → Top-K → Context → Ollama → Answer + Sources
+
+The ingestion pipeline processes the documents through the following stages:
+
+```text
+Documents
+    ↓
+Parsing
+    ↓
+Text / OCR / Table / Image Extraction
+    ↓
+Preprocessing
+    ↓
+Deduplication
+    ↓
+Chunking
+    ↓
+Metadata
+    ↓
+Embeddings
+    ↓
+Vector Database
 ```
 
-## Setup
+---
+
+# Supported Content
+
+The project can process:
+
+* Normal PDF text
+* Scanned PDF pages using OCR
+* Tables
+* Embedded images
+* Standalone images
+
+Different content types are processed and stored with metadata so they can be retrieved later.
+
+---
+
+# Query Flow
+
+The user asks a question through the Streamlit frontend.
+
+The query follows this flow:
+
+```text
+User Question
+    ↓
+Streamlit Frontend
+    ↓
+FastAPI Backend
+    ↓
+Search bucket_1
+    +
+Search bucket_2
+    ↓
+Combine Results
+    ↓
+Reranking
+    ↓
+Filter Irrelevant Chunks
+    ↓
+Select Best Chunks
+    ↓
+Build Prompt
+    ↓
+Ollama Model
+    ↓
+Generate Answer
+    ↓
+Return Answer and Sources
+```
+
+The user does not need to select a bucket.
+
+Both buckets are searched automatically.
+
+---
+
+# Retrieval
+
+The system retrieves relevant document chunks from both knowledge buckets.
+
+The retrieved results are then:
+
+1. Combined.
+2. Sorted using reranking scores.
+3. Checked against the relevance threshold.
+4. Filtered to remove weak or irrelevant chunks.
+5. Limited to the strongest chunks for answer generation.
+
+This helps ensure that only relevant information is passed to the language model.
+
+---
+
+# Answer Generation
+
+The strongest retrieved chunks are passed to the prompt generator along with the user's question.
+
+The prompt instructs the model to generate a meaningful answer based on the retrieved content.
+
+The system is designed to generate concise answers instead of directly returning entire document chunks.
+
+Answer generation is performed using a local Ollama model.
+
+---
+
+# Unknown Questions
+
+If the system cannot find sufficiently relevant information in the knowledge base, it returns:
+
+```text
+Relevant information was not found in the knowledge base.
+```
+
+This prevents the model from generating answers without relevant retrieved evidence.
+
+---
+
+# Sources
+
+Every generated answer includes information about the chunks used to generate it.
+
+Source information includes:
+
+* File name
+* Bucket ID
+* Content type
+* Page number
+* Reranking score
+
+This information is displayed in the frontend.
+
+---
+
+# Frontend
+
+The project includes a Streamlit frontend.
+
+The frontend allows users to:
+
+* Enter a question
+* Send the question to the API
+* View the generated answer
+* View the sources used for the answer
+* See errors if the API is unavailable
+
+---
+
+# Backend
+
+The backend is built using FastAPI.
+
+The frontend sends the user's question to the API.
+
+The API processes the question through the RAG pipeline and returns:
+
+```json
+{
+    "answer": "Generated answer",
+    "sources": []
+}
+```
+
+---
+
+# Logging
+
+The project includes logging for the RAG query flow.
+
+The log records the major steps involved in answering a question, such as:
+
+```text
+Query received
+Search started
+Bucket 1 searched
+Bucket 2 searched
+Results combined
+Results filtered
+Relevant chunks selected
+Prompt created
+Answer generated
+Sources prepared
+Response returned
+```
+
+This helps with debugging and understanding the complete flow from the user query to the final answer.
+
+---
+
+# Project Structure
+
+```text
+multimodal-rag/
+│
+├── data/
+│   ├── bucket_1/
+│   └── bucket_2/
+│
+├── logs/
+│
+├── scripts/
+│   ├── ingest.py
+│   ├── test_rag.py
+│   └── test scripts
+│
+├── src/
+│   │
+│   ├── api/
+│   │
+│   ├── chunking/
+│   │
+│   ├── config/
+│   │
+│   ├── embeddings/
+│   │
+│   ├── generation/
+│   │   ├── rag.py
+│   │   ├── prompt.py
+│   │   └── ollama_client.py
+│   │
+│   ├── ingestion/
+│   │
+│   ├── metadata/
+│   │
+│   ├── preprocessing/
+│   │
+│   ├── retrieval/
+│   │
+│   └── vector_store/
+│
+├── frontend/
+│
+├── requirements.txt
+├── run.py
+└── README.md
+```
+
+---
+
+# Technologies Used
+
+The project uses:
+
+* Python
+* PyMuPDF
+* pdfplumber
+* OCR
+* RapidOCR
+* Pillow
+* Embedding models
+* Vector database
+* BM25 retrieval
+* Reranking
+* Ollama
+* Qwen3
+* FastAPI
+* Streamlit
+
+---
+
+# Running the Project
+
+## Activate the Virtual Environment
+
+Windows:
 
 ```bash
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+.venv\Scripts\activate
+```
 
+## Install Dependencies
+
+```bash
 pip install -r requirements.txt
-cp .env.example .env            # optional - defaults work out of the box
 ```
 
-You'll also need:
-- **Tesseract OCR** installed system-wide (for scanned PDFs / images):
-  `apt install tesseract-ocr` (Linux) or `brew install tesseract` (Mac).
-- **Ollama** running locally with two models pulled:
-  - `ollama pull llama3.2` — text generation (answers)
-  - `ollama pull llava` — vision understanding (charts/diagrams/photos in PDFs and standalone images)
-
-## Usage
-
-**1. Add test documents** (start small — 1 per bucket):
-
-```
-data/bucket_1/your_test_doc.pdf
-data/bucket_2/another_test_doc.pdf
-```
-
-**2. Ingest** (parses → chunks → embeds → stores):
+## Ingest Documents
 
 ```bash
-python scripts/ingest.py                  # both buckets
-python scripts/ingest.py --bucket bucket_1
+python scripts/ingest.py
 ```
 
-**3. Test retrieval directly** (before touching Ollama — recommended):
+## Test the RAG Pipeline
 
 ```bash
-python scripts/test_retrieval.py bucket_1 "What is the minimum age required?"
+python -m scripts.test_rag
 ```
 
-**4. Run the API:**
+## Start the Backend
 
 ```bash
 python run.py
-# → http://localhost:8000/docs for interactive Swagger UI
 ```
 
-**5. Verify with Postman:** import `postman/multimodal-rag.postman_collection.json`
-and run requests 1–6 in order (health → ingest → bucket queries → bucket
-isolation check).
+## Start the Frontend
 
-## Project structure
+Run the Streamlit command for your frontend Python file:
 
-```
-src/
-├── ingestion/      # file detection, PDF/image parsing, OCR, tables
-├── preprocessing/  # cleaning, normalization, dedup
-├── chunking/       # text splitting (respects tables/paragraphs)
-├── metadata/       # attaches chunk_id, bucket_id, page_number, etc.
-├── embeddings/      # embedding model wrapper (swappable)
-├── vector_store/     # abstract interface + Chroma (default) / Qdrant
-├── retrieval/       # bucket-filtered similarity search
-├── generation/      # prompt building + Ollama client
-├── api/              # FastAPI app (/health, /ingest, /query)
-└── config/           # all tunables (chunk size, top_k, model names, etc.)
+```bash
+streamlit run <frontend_file>.py
 ```
 
-Every tunable (chunk size/overlap, embedding model, vector backend, top_k,
-Ollama model, OCR engine) lives in `src/config/settings.py` / `.env` —
-nothing is hard-coded in the pipeline modules.
+---
 
-## Testing progression (go slow — don't skip stages)
+# Example Questions
 
-Each stage adds documents incrementally and has a concrete pass/fail
-check before moving on. Add docs to `data/bucket_1/` and `data/bucket_2/`,
-re-run `python scripts/ingest.py`, then verify with the commands shown.
+```text
+What is the capital of Karnataka?
 
-| Stage | Docs | Goal | How to verify |
-|---|---|---|---|
-| 🧪 Test 1 | 1 | Prove basic ingestion → retrieval works at all | `ingest.py` runs with no errors → `test_retrieval.py bucket_1 "<a question the doc answers>"` returns a relevant chunk |
-| 🧪 Test 2 | 2 | Different document types (e.g. 1 text PDF + 1 scanned/image) | Check ingestion logs show the right path taken per file (text extraction vs. OCR vs. vision) — inspect chunk `content_type` in the printed output |
-| 🧪 Test 3 | 5 | Multiple chunks/documents don't collide | `test_retrieval.py` for a few different questions — confirm each returns chunks from the *correct* source document, not a random one |
-| 🧪 Test 4 | 10 | Bucket filtering actually isolates | Put docs in both buckets. Ask a bucket_2-only question while querying `bucket_1` — must return "not found," never bucket_2 content |
-| 🧪 Test 5 | 25 | Stress retrieval quality at more scale | Spot-check 5–10 varied queries; watch for irrelevant top-K results creeping in (may mean `TOP_K` or chunk size needs tuning) |
-| 🧪 Test 6 | 50 | One full bucket complete | Full bucket_1 ingestion completes without errors; retrieval still accurate across the whole set |
-| 🚀 Final | 100 | Full project | Both buckets at 50 each; run the full Postman collection end to end |
+Which rivers are important in Karnataka?
 
-Only move to the next stage once the current one passes cleanly. If
-something breaks, it's much easier to debug at 5 documents than at 100.
+Which city is known as the technology hub of Karnataka?
 
-## Build order (once past document-count testing)
+What are the major industries in Kerala?
+```
 
-1. **Ingestion** — `scripts/ingest.py`, inspect chunks look right
-2. **Retrieval** — `scripts/test_retrieval.py`, confirm relevant chunks come back
-3. **Bucket isolation** — Test 4 above
-4. **Generation** — connect Ollama, check grounded answers + "not found" behavior
-5. **API** — `python run.py`, hit `/health`, `/ingest`, `/query`
-6. **Postman** — run the full collection
-7. **UI** (not yet scaffolded — Streamlit, Phase 9)
+The system also handles questions that are not related to the knowledge base.
 
-## What's covered vs. still a stub
+Example:
 
-| Input | Content | Handling |
-|---|---|---|
-| PDF | Normal text | ✅ PyMuPDF text extraction |
-| PDF | Scanned pages | ✅ Auto-detected (low text density) → OCR fallback |
-| PDF | Tables | ✅ Extracted as markdown, kept as one un-split chunk |
-| PDF | Embedded images/charts/diagrams | ✅ Extracted via PyMuPDF, run through OCR + `llava` vision description |
-| PNG / JPEG (standalone) | Text/visual content | ✅ OCR + `llava` vision description |
-| Mixed PDF (text + tables + images) | Combined | ✅ Each page produces separate text / table / image units, all flow into the same chunking → embedding → retrieval path |
+```text
+What is the population of Mars?
+```
 
-Known stub:
-- `qdrant_store.py` raises `NotImplementedError` — it's a placeholder so
-  the vector-store interface is already backend-agnostic. Switching from
-  Chroma later is a one-line change in `vector_store/__init__.py`.
+Expected response:
 
-Notes on the image pipeline:
-- Small embedded images (under 100×100px) are skipped automatically —
-  these are almost always icons/logos/decorative elements, not content.
-- If `llava` isn't installed or Ollama isn't reachable, vision description
-  fails gracefully (logs a warning, returns `""`) — OCR text is still
-  captured, so ingestion never breaks because vision is unavailable.
+```text
+Relevant information was not found in the knowledge base.
+```
+
+---
+
+# Current Project Flow Summary
+
+```text
+Documents
+    ↓
+Extract Content
+    ↓
+Clean Content
+    ↓
+Chunk Content
+    ↓
+Create Metadata
+    ↓
+Generate Embeddings
+    ↓
+Store in Vector Database
+
+User Question
+    ↓
+Search Both Buckets
+    ↓
+Retrieve Results
+    ↓
+Rerank Results
+    ↓
+Filter Relevant Chunks
+    ↓
+Build Prompt
+    ↓
+Generate Answer
+    ↓
+Return Answer and Sources
+    ↓
+Display in Streamlit
+```
+
+# Current Status
+
+The project currently has:
+
+* Document ingestion
+* Multimodal document processing
+* OCR
+* Table extraction
+* Image processing
+* Preprocessing
+* Deduplication
+* Chunking
+* Metadata
+* Embeddings
+* Vector storage
+* Retrieval
+* Reranking
+* Automatic search across both buckets
+* Relevance filtering
+* Grounded answer generation
+* Unknown-question handling
+* Source display
+* FastAPI integration
+* Streamlit frontend
+* Query flow logging
+
+The complete system is currently working as an end-to-end multimodal RAG application.
