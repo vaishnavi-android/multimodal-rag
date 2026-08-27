@@ -88,3 +88,40 @@ class ChromaStore(VectorStore):
         )
 
         return len(results["ids"])
+    
+    def get_documents(
+        self,
+        bucket_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+
+        where = (
+            {"bucket_id": bucket_id}
+            if bucket_id
+            else None
+        )
+
+        results = self._collection.get(
+            where=where,
+            include=[
+                "documents",
+                "metadatas",
+            ],
+        )
+
+        ids = results.get("ids", [])
+        documents = results.get("documents", [])
+        metadatas = results.get("metadatas", [])
+
+        output = []
+
+        for i in range(len(ids)):
+
+            output.append(
+                {
+                    "id": ids[i],
+                    "text": documents[i],
+                    "metadata": metadatas[i],
+                }
+            )
+
+        return output

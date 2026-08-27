@@ -1,94 +1,84 @@
 """
-Prompt construction for the RAG generation layer.
-
-The LLM must answer ONLY from evidence retrieved from the knowledge base.
-It must not use outside knowledge or guess when the evidence is insufficient.
+Builds grounded prompts for the RAG generation stage.
 """
 
 from typing import List, Dict, Any
 
 
-SYSTEM_INSTRUCTIONS = (
-    "You are the answer-generation component of a Retrieval-Augmented "
-    "Generation (RAG) system.\n\n"
-
-    "You MUST answer the user's question using ONLY the information "
-    "contained in the provided knowledge-base evidence.\n\n"
-
-    "Rules:\n"
-    "1. Do not use outside knowledge.\n"
-    "2. Do not invent, assume, or hallucinate facts.\n"
-    "3. Combine information from multiple sources when necessary.\n"
-    "4. If the evidence contains enough information, give a clear and "
-    "direct answer to the question.\n"
-    "5. If the evidence does not contain enough relevant information, "
-    "respond exactly with: "
-    "\"Relevant information was not found in the knowledge base.\"\n"
-    "6. Do not answer a question merely because the topic is vaguely "
-    "related to the retrieved evidence.\n"
-    "7. Keep the answer concise but complete.\n"
+NOT_FOUND_MESSAGE = (
+    "Relevant information was not found in the knowledge base."
 )
-
-
-def build_context_block(
-    retrieved_chunks: List[Dict[str, Any]]
-) -> str:
-    """
-    Convert retrieved evidence into a clearly labelled context block.
-    """
-
-    if not retrieved_chunks:
-        return ""
-
-    blocks = []
-
-    for i, chunk in enumerate(retrieved_chunks, start=1):
-        meta = chunk.get("metadata", {})
-
-        source_label = meta.get("file_name", "unknown")
-
-        page = meta.get("page_number")
-
-        if page is not None:
-            source_label = f"{source_label} (page {page})"
-
-        bucket = meta.get("bucket_id")
-
-        if bucket:
-            source_label = f"{source_label}, {bucket}"
-
-        blocks.append(
-            f"[Evidence {i}: {source_label}]\n"
-            f"{chunk.get('text', '').strip()}"
-        )
-
-    return "\n\n---\n\n".join(blocks)
 
 
 def build_prompt(
     query: str,
-    retrieved_chunks: List[Dict[str, Any]]
+    retrieved_chunks: List[Dict[str, Any]],
 ) -> str:
     """
-    Build the final grounded prompt sent to Ollama
+    Build a grounded prompt for answer generation.
+
+    The model must use only retrieved evidence and synthesize
+    a natural answer instead of copying chunk text.
     """
 
-    context_block = build_context_block(retrieved_chunks)
+    context_parts = []
 
-    if not context_block:
-        return (
-            f"{SYSTEM_INSTRUCTIONS}\n\n"
-            f"KNOWLEDGE-BASE EVIDENCE:\n"
-            f"No relevant evidence was retrieved.\n\n"
-            f"QUESTION:\n{query}\n\n"
-            f"ANSWER:"
+    for index, chunk in enumerate(
+        retrieved_chunks,
+        start=1,
+    ):
+        text = chunk.get("text", "").strip()
+
+        if not text:
+            continue
+
+        context_parts.append(
+            f"""
+EVIDENCE {index}:
+{text}
+""".strip()
         )
 
-    return (
-        f"{SYSTEM_INSTRUCTIONS}\n\n"
-        f"KNOWLEDGE-BASE EVIDENCE:\n"
-        f"{context_block}\n\n"
-        f"QUESTION:\n"
-        f"{query}\n\n"
-        f"ANSWER:"
-    )
+    context = "\n\n".join(context_parts)
+
+    prompt = f"""
+You are the final answer generator for a Retrieval-Augmented
+Generation system.
+
+Answer the user's question using ONLY the evidence provided below.
+
+YOUR JOB:
+
+1. Read the evidence carefully.
+2. Identify the facts that directly answer the question.
+3. Combine relevant facts when necessary.
+4. Write a fresh answer in natural language.
+5. Do NOT copy an entire sentence or paragraph from the evidence.
+6. Do NOT repeat the evidence.
+7. Do NOT mention chunks, sources, retrieval, context,
+   documents, or the knowledge base.
+8. Do NOT add outside knowledge.
+9. Use short and meaningful sentences.
+10. Give a complete answer. Never stop in the middle of a sentence.
+11. If the answer is clearly supported by the evidence,
+    answer confidently.
+12. Use this exact response only when NONE of the evidence
+    contains enough information to answer:
+
+"{NOT_FOUND_MESSAGE}"
+
+IMPORTANT:
+
+Do not summarize every piece of evidence.
+Answer only what the user asked.
+
+QUESTION:
+{query}
+
+EVIDENCE:
+{context}
+
+Now write the final answer only.
+"""
+
+    return prompt.strip()

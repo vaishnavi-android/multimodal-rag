@@ -67,7 +67,7 @@ def preprocess_content_units(
 
             continue
 
-        if unit.content_type == "image_description":
+        if unit.content_type == "image_ocr":
             cleaned = clean_text(unit.text)
             cleaned = clean_ocr_text(cleaned)
 

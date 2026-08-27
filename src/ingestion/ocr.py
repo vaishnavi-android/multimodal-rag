@@ -1,19 +1,55 @@
 """
-OCR wrapper. Kept as a thin, swappable layer around Tesseract so the
-engine can be changed via config without touching callers.
+OCR wrapper using RapidOCR.
+
+Provides a single run_ocr() function for the ingestion pipeline.
 """
 
-import pytesseract
+from rapidocr import RapidOCR
 
-from src.config.settings import OCR_LANGUAGE
 
-# Windows: tell pytesseract exactly where Tesseract is installed.
-pytesseract.pytesseract.tesseract_cmd = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-)
+# Initialize the OCR engine only once.
+ocr_engine = RapidOCR()
 
 
 def run_ocr(image) -> str:
-    """Run OCR on a PIL Image and return extracted text."""
-    text = pytesseract.image_to_string(image, lang=OCR_LANGUAGE)
-    return text.strip()
+    """
+    Run OCR on an image and return extracted text.
+
+    Parameters
+    ----------
+    image:
+        PIL Image or another image format supported by RapidOCR.
+
+    Returns
+    -------
+    str:
+        Extracted text.
+    """
+
+    try:
+        # Run RapidOCR
+        result = ocr_engine(image)
+
+        # If OCR produced no result
+        if result is None:
+            return ""
+
+        # RapidOCR newer versions return RapidOCROutput.
+        # The actual OCR results are stored in result.txts.
+        texts = result.txts
+
+        if not texts:
+            return ""
+
+        # Clean individual text values
+        cleaned_texts = []
+
+        for text in texts:
+            if text and isinstance(text, str):
+                cleaned_texts.append(text.strip())
+
+        return "\n".join(cleaned_texts).strip()
+
+    except Exception as error:
+        print(f"[RapidOCR] OCR failed: {error}")
+        return ""

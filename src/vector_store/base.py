@@ -36,7 +36,7 @@ class VectorStore(ABC):
         text, metadata, score.
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     def document_exists(self, document_id: str) -> bool:
         """Return True if the document has already been ingested."""
@@ -45,4 +45,14 @@ class VectorStore(ABC):
     @abstractmethod
     def count(self, bucket_id: Optional[str] = None) -> int:
         """Number of chunks currently stored (optionally scoped to a bucket)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_documents(
+        self,
+        bucket_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Return stored documents/chunks, optionally filtered by bucket.
+        """
         raise NotImplementedError

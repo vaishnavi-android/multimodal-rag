@@ -1,8 +1,15 @@
 """
-Splits cleaned RawContentUnit text into chunks for embedding.
+Splits cleaned RawContentUnit text into meaningful chunks for embedding.
 
+Strategy:
+- Tables remain complete and are never split.
+- Text is split into sections when possible.
+- Sections are split into sentences.
+- Chunks try to preserve sentence boundaries.
+- Overlap is sentence-based instead of character-based.
 """
 
+import re
 from dataclasses import dataclass
 from typing import List
 
@@ -18,23 +25,60 @@ class Chunk:
     page_number: int | None
 
 
-def chunk_units(units, chunk_size: int = CHUNK_SIZE, chunk_overlap: int = CHUNK_OVERLAP) -> List[Chunk]:
+def chunk_units(
+    units,
+    chunk_size: int = CHUNK_SIZE,
+    chunk_overlap: int = CHUNK_OVERLAP,
+) -> List[Chunk]:
+    """
+    Convert preprocessed content units into embedding chunks.
+    """
+
     chunks: List[Chunk] = []
 
     for unit in units:
+
+        # -------------------------------------------------
+        # TABLES
+        # -------------------------------------------------
+        # Tables must remain complete because splitting
+        # rows/columns would destroy their relationships.
         if unit.content_type == "table":
-            chunks.append(_to_chunk(unit, unit.text))
+            chunks.append(
+                _to_chunk(unit, unit.text.strip())
+            )
             continue
 
-        for piece in _split_text(unit.text, chunk_size, chunk_overlap):
-            chunks.append(_to_chunk(unit, piece))
+        # -------------------------------------------------
+        # TEXT / OCR / IMAGE DESCRIPTION
+        # -------------------------------------------------
+        sections = _split_into_sections(unit.text)
+
+        for section in sections:
+
+            sentences = _split_into_sentences(section)
+
+            section_chunks = _build_chunks_from_sentences(
+                sentences=sentences,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+            )
+
+            for piece in section_chunks:
+
+                if piece.strip():
+                    chunks.append(
+                        _to_chunk(unit, piece)
+                    )
 
     return chunks
 
 
 def _to_chunk(unit, text: str) -> Chunk:
+    """Create a Chunk while preserving metadata."""
+
     return Chunk(
-        text=text,
+        text=text.strip(),
         document_path=str(unit.document_path),
         bucket_id=unit.bucket_id,
         content_type=unit.content_type,
@@ -42,36 +86,353 @@ def _to_chunk(unit, text: str) -> Chunk:
     )
 
 
-def _split_text(text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
-    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-    if not paragraphs:
+# =========================================================
+# SECTION SPLITTING
+# =========================================================
+
+def _split_into_sections(text: str) -> List[str]:
+    """
+    Split text into semantic sections.
+
+    Detects inline headings followed by numbered facts.
+
+    Examples:
+
+        Earth & Geography 01. Earth is...
+
+        Human Biology 07. An adult human skeleton...
+
+        Physics & Chemistry 13. Light travels...
+
+        Space 19. The Sun is...
+
+        Ecology 24. Food webs...
+    """
+
+    if not text or not text.strip():
         return []
 
-    pieces: List[str] = []
-    current = ""
+    text = text.strip()
 
-    for para in paragraphs:
-        # A single paragraph longer than chunk_size gets its own sliding-window split.
-        if len(para) > chunk_size:
-            if current:
-                pieces.append(current)
-                current = ""
-            pieces.extend(_sliding_window(para, chunk_size, chunk_overlap))
+    # Match a likely heading followed by a numbered item.
+    #
+    # Examples:
+    #
+    # Earth & Geography 01.
+    # Human Biology 07.
+    # Physics & Chemistry 13.
+    # Space 19.
+    # Ecology 24.
+    pattern = re.compile(
+        r"""
+        (?P<heading>
+            [A-Z]
+            [A-Za-z&/\-\s]{1,50}
+        )
+        \s+
+        (?P<number>\d{1,2}\.)
+        """,
+        re.VERBOSE,
+    )
+
+    matches = list(pattern.finditer(text))
+
+    # No headings found.
+    if not matches:
+        return [text]
+
+    sections: List[str] = []
+
+    # Preserve text before the first detected heading.
+    first_start = matches[0].start()
+
+    if text[:first_start].strip():
+        sections.append(
+            text[:first_start].strip()
+        )
+
+    # Create sections.
+    for index, match in enumerate(matches):
+
+        start = match.start()
+
+        if index + 1 < len(matches):
+            end = matches[index + 1].start()
+        else:
+            end = len(text)
+
+        section = text[start:end].strip()
+
+        if section:
+            sections.append(section)
+
+    return sections
+
+
+# =========================================================
+# SENTENCE SPLITTING
+# =========================================================
+
+def _split_into_sentences(text: str) -> List[str]:
+    """
+    Split text into sentences.
+
+    Handles:
+    - .
+    - ?
+    - !
+    - Numbered facts such as '14.'
+    """
+
+    if not text or not text.strip():
+        return []
+
+    text = re.sub(
+        r"\s+",
+        " ",
+        text.strip(),
+    )
+
+    # Split before numbered items:
+    #
+    # "... Geography 01. Earth is..."
+    #
+    # becomes:
+    #
+    # "Geography"
+    # "01. Earth is..."
+    text = re.sub(
+        r"(?<!^)(?=\s\d{1,2}\.\s)",
+        "\n",
+        text,
+    )
+
+    # Split normal sentences.
+    raw_sentences = re.split(
+        r"(?<=[.!?])\s+",
+        text,
+    )
+
+    sentences: List[str] = []
+
+    for sentence in raw_sentences:
+
+        sentence = sentence.strip()
+
+        if not sentence:
             continue
 
-        candidate = f"{current}\n\n{para}" if current else para
-        if len(candidate) <= chunk_size:
-            current = candidate
+        # Avoid keeping tiny fragments separately.
+        if (
+            sentences
+            and len(sentence) < 25
+        ):
+            sentences[-1] += " " + sentence
         else:
-            pieces.append(current)
-            current = para
+            sentences.append(sentence)
+
+    return sentences
+
+
+# =========================================================
+# CHUNK BUILDING
+# =========================================================
+
+def _build_chunks_from_sentences(
+    sentences: List[str],
+    chunk_size: int,
+    chunk_overlap: int,
+) -> List[str]:
+    """
+    Build chunks without cutting sentences.
+
+    Overlap is based on complete trailing sentences,
+    not arbitrary characters.
+    """
+
+    if not sentences:
+        return []
+
+    chunks: List[str] = []
+    current: List[str] = []
+    current_length = 0
+
+    for sentence in sentences:
+
+        sentence_length = len(sentence)
+
+        # ---------------------------------------------
+        # SENTENCE TOO LARGE
+        # ---------------------------------------------
+        if sentence_length > chunk_size:
+
+            if current:
+                chunks.append(
+                    " ".join(current)
+                )
+                current = []
+                current_length = 0
+
+            # Emergency fallback.
+            # Only used when one individual sentence is
+            # larger than chunk_size.
+            chunks.extend(
+                _split_long_sentence(
+                    sentence,
+                    chunk_size,
+                )
+            )
+
+            continue
+
+        # ---------------------------------------------
+        # ADD TO CURRENT CHUNK
+        # ---------------------------------------------
+        separator_length = 1 if current else 0
+
+        if (
+            current_length
+            + separator_length
+            + sentence_length
+            <= chunk_size
+        ):
+            current.append(sentence)
+            current_length += (
+                separator_length
+                + sentence_length
+            )
+
+            continue
+
+        # ---------------------------------------------
+        # CHUNK FULL
+        # ---------------------------------------------
+        if current:
+
+            chunks.append(
+                " ".join(current)
+            )
+
+        # ---------------------------------------------
+        # CREATE SENTENCE-BASED OVERLAP
+        # ---------------------------------------------
+        overlap_sentences = _get_overlap_sentences(
+            current,
+            chunk_overlap,
+        )
+
+        current = overlap_sentences + [sentence]
+
+        current_length = len(
+            " ".join(current)
+        )
+
+    # Add final chunk.
+    if current:
+
+        final_chunk = " ".join(current)
+
+        if final_chunk.strip():
+
+            chunks.append(final_chunk)
+
+    return chunks
+
+
+# =========================================================
+# SENTENCE OVERLAP
+# =========================================================
+
+def _get_overlap_sentences(
+    sentences: List[str],
+    overlap_size: int,
+) -> List[str]:
+    """
+    Keep complete sentences from the end of the previous
+    chunk until approximately overlap_size characters
+    are included.
+    """
+
+    if not sentences:
+        return []
+
+    overlap: List[str] = []
+    total = 0
+
+    for sentence in reversed(sentences):
+
+        sentence_length = len(sentence)
+
+        if (
+            overlap
+            and total + sentence_length > overlap_size
+        ):
+            break
+
+        overlap.insert(0, sentence)
+
+        total += sentence_length
+
+    return overlap
+
+
+# =========================================================
+# FALLBACK FOR VERY LONG SENTENCES
+# =========================================================
+
+def _split_long_sentence(
+    text: str,
+    chunk_size: int,
+) -> List[str]:
+    """
+    Emergency fallback for a single sentence that is
+    longer than chunk_size.
+
+    Splits at word boundaries where possible.
+    """
+
+    words = text.split()
+
+    chunks: List[str] = []
+    current: List[str] = []
+    current_length = 0
+
+    for word in words:
+
+        word_length = len(word)
+
+        separator_length = (
+            1
+            if current
+            else 0
+        )
+
+        if (
+            current
+            and current_length
+            + separator_length
+            + word_length
+            > chunk_size
+        ):
+
+            chunks.append(
+                " ".join(current)
+            )
+
+            current = []
+            current_length = 0
+
+        current.append(word)
+
+        current_length += (
+            separator_length
+            + word_length
+        )
 
     if current:
-        pieces.append(current)
 
-    return pieces
+        chunks.append(
+            " ".join(current)
+        )
 
-
-def _sliding_window(text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
-    step = max(chunk_size - chunk_overlap, 1)
-    return [text[i:i + chunk_size] for i in range(0, len(text), step) if text[i:i + chunk_size].strip()]
+    return chunks

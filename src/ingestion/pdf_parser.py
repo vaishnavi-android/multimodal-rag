@@ -16,6 +16,7 @@ stays focused on text + page structure + embedded images.
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List
+import pymupdf
 
 # Minimum characters of extracted text before we trust a page is
 # text-based rather than a scanned image.
@@ -54,7 +55,7 @@ def parse_pdf(file_path: Path) -> ParsedPDF:
     import io
 
     file_path = Path(file_path)
-    doc = fitz.open(file_path)
+    doc = pymupdf.open(file_path)
 
     pages: List[PageContent] = []
     embedded_images: List[EmbeddedImage] = []

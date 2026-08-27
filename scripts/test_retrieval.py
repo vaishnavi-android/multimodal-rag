@@ -1,39 +1,87 @@
 """
-Quick manual sanity check for Phase 5: prove bucket-filtered retrieval
-works BEFORE wiring up Ollama, per the recommended build order.
-
-Usage:
-    python scripts/test_retrieval.py bucket_1 "What is the minimum age required?"
+Tests vector database retrieval.
 """
 
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Allow running:
+# python scripts/test_retrieval.py
+# from the project root.
+
+sys.path.insert(
+    0,
+    str(Path(__file__).resolve().parent.parent),
+)
+
 
 from src.retrieval.retriever import retrieve
 
 
 def main():
-    if len(sys.argv) < 3:
-        print('Usage: python scripts/test_retrieval.py <bucket_id> "<query>"')
-        sys.exit(1)
 
-    bucket_id = sys.argv[1]
-    query = sys.argv[2]
+    # ---------------------------------------------------------
+    # TEST QUESTION
+    # ---------------------------------------------------------
 
-    results = retrieve(query=query, bucket_id=bucket_id)
+    question = "What is the capital of Karnataka?"
 
-    print(f"\nQuery: {query}")
+    # ---------------------------------------------------------
+    # SELECT BUCKET
+    # ---------------------------------------------------------
+
+    bucket_id = "bucket_1"
+
+    # ---------------------------------------------------------
+    # RETRIEVE
+    # ---------------------------------------------------------
+
+    results = retrieve(
+        query=question,
+        bucket_id=bucket_id,
+        top_k=5,
+    )
+
+    print("\n" + "=" * 70)
+    print("RETRIEVAL TEST")
+    print("=" * 70)
+
+    print(f"\nQuestion: {question}")
     print(f"Bucket: {bucket_id}")
-    print(f"Retrieved {len(results)} chunk(s):\n")
+    print(f"Results found: {len(results)}")
 
-    for i, r in enumerate(results, start=1):
-        meta = r["metadata"]
-        print(f"--- Result {i} (score={r.get('score')}) ---")
-        print(f"  file: {meta.get('file_name')}  page: {meta.get('page_number')}  bucket: {meta.get('bucket_id')}")
-        print(f"  text: {r['text'][:200]}...")
-        print()
+    # ---------------------------------------------------------
+    # DISPLAY RESULTS
+    # ---------------------------------------------------------
+
+    for i, result in enumerate(results, start=1):
+
+        print("\n" + "-" * 70)
+
+        print(f"RESULT {i}")
+
+        print("-" * 70)
+
+        print(
+            f"Distance: "
+            f"{result['distance']}"
+        )
+
+        print("\nMetadata:")
+
+        for key, value in result["metadata"].items():
+            print(
+                f"  {key}: {value}"
+            )
+
+        print("\nRetrieved Text:")
+
+        print(
+            result["text"]
+        )
+
+    print("\n" + "=" * 70)
 
 
 if __name__ == "__main__":

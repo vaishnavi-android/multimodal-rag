@@ -54,16 +54,28 @@ COLLECTION_NAME = os.getenv(
 )
 
 
-# Retrieval
-TOP_K = int(os.getenv("TOP_K", 10))
+# RetrievaL
 
 RETRIEVAL_DISTANCE_THRESHOLD = float(
     os.getenv("RETRIEVAL_DISTANCE_THRESHOLD", 1.0)
 )
+# Hybrid retrieval
+DENSE_TOP_K = 6
+BM25_TOP_K = 6
+# Fusion
+RRF_K = 60
+
+# Reranking
+RERANK_CANDIDATES = 8
+FINAL_TOP_K = 4
+
+# Minimum cross-encoder relevance score required
+# before attempting answer generation.
+RERANK_RELEVANCE_THRESHOLD = 0.0
 
 
 # OCR
-OCR_ENGINE = os.getenv("OCR_ENGINE", "tesseract")
+OCR_ENGINE = os.getenv("OCR_ENGINE", "rapidocr")
 OCR_LANGUAGE = os.getenv("OCR_LANGUAGE", "eng")
 
 
